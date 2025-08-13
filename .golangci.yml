@@ -1,5 +1,3 @@
-configVersion: 2
-
 run:
   tests: true
   build-tags:
