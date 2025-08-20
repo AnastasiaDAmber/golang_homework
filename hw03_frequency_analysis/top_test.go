@@ -1,6 +1,7 @@
 package hw03frequencyanalysis
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -78,5 +79,68 @@ func TestTop10(t *testing.T) {
 			}
 			require.Equal(t, expected, Top10(text))
 		}
+	})
+}
+
+func TestTop10AdditionalAll(t *testing.T) {
+	t.Run("single word repeated", func(t *testing.T) {
+		text := "go go go"
+		expected := []string{"go"}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("lexicographic order tie", func(t *testing.T) {
+		text := "cat bat apple bat cat dog"
+		expected := []string{"bat", "cat", "apple", "dog"}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("punctuation as part of word", func(t *testing.T) {
+		text := "go! go, go."
+		expected := []string{"go!", "go,", "go."}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("more than 10 words", func(t *testing.T) {
+		text := "a b c d e f g h i j k l m n o"
+		expected := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("case sensitivity", func(t *testing.T) {
+		text := "Go go GO gO"
+		expected := []string{"GO", "Go", "gO", "go"}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("very long word", func(t *testing.T) {
+		text := strings.Repeat("aVeryLongWord ", 100)
+		text = strings.TrimSpace(text)
+		expected := []string{"aVeryLongWord"}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("words with various spaces", func(t *testing.T) {
+		text := "one\ttwo  three\nfour"
+		expected := []string{"four", "one", "three", "two"}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("punctuation variants", func(t *testing.T) {
+		text := "hello! hello!! hello!!!"
+		expected := []string{"hello!", "hello!!", "hello!!!"}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("more than 10 words with same freq", func(t *testing.T) {
+		text := "a b c d e f g h i j k l"
+		expected := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+		require.Equal(t, expected, Top10(text))
+	})
+
+	t.Run("mixed case and punctuation", func(t *testing.T) {
+		text := "Go go GO go! Go?"
+		expected := []string{"GO", "Go", "Go?", "go", "go!"}
+		require.Equal(t, expected, Top10(text))
 	})
 }
