@@ -26,7 +26,6 @@ func TestUnpack(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.input, func(t *testing.T) {
 			result, err := Unpack(tc.input)
 			require.NoError(t, err)
@@ -38,10 +37,55 @@ func TestUnpack(t *testing.T) {
 func TestUnpackInvalidString(t *testing.T) {
 	invalidStrings := []string{"3abc", "45", "aaa10b"}
 	for _, tc := range invalidStrings {
-		tc := tc
 		t.Run(tc, func(t *testing.T) {
 			_, err := Unpack(tc)
 			require.Truef(t, errors.Is(err, ErrInvalidString), "actual error %q", err)
+		})
+	}
+}
+
+func TestUnpackComprehensive(t *testing.T) {
+	tests := []struct {
+		input       string
+		expected    string
+		expectError bool
+	}{
+		// обычные повторения
+		{"a4bc2d5e", "aaaabccddddde", false},
+		{"abcd", "abcd", false},
+		{"aaa0b", "aab", false},
+		{"a0b0c", "c", false},   // несколько нулей
+		{"a1b1c", "abc", false}, // повтор 1
+
+		// UTF-8 символы
+		{"🙂2🙃3", "🙂🙂🙃🙃🙃", false},
+		{"ф2я3", "ффяяя", false},
+		{"ф0я", "я", false},
+
+		// спецсимволы
+		{"a\n3b", "a\n\n\nb", false},
+		{"\t2x", "\t\tx", false},
+
+		// пустая строка
+		{"", "", false},
+
+		// ошибки
+		{"3abc", "", true},   // цифра в начале
+		{"45", "", true},     // только цифры
+		{"aaa10b", "", true}, // многозначная цифра
+		{"a12b", "", true},   // две цифры подряд
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			result, err := Unpack(tc.input)
+			if tc.expectError {
+				require.Error(t, err)
+				require.Truef(t, errors.Is(err, ErrInvalidString), "actual error %q", err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, result)
+			}
 		})
 	}
 }
