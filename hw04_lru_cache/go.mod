@@ -1,8 +1,8 @@
-module github.com/fixme_my_friend/hw04_lru_cache
+module github.com/AnastasiaDAmber/golang_homework/hw04_lru_cache
 
 go 1.23
 
-require github.com/stretchr/testify v1.10.0
+require github.com/stretchr/testify v1.11.1
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
