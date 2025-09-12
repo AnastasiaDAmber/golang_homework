@@ -68,3 +68,48 @@ func TestRun(t *testing.T) {
 		require.LessOrEqual(t, int64(elapsedTime), int64(sumTime/2), "tasks were run sequentially?")
 	})
 }
+
+func TestRun_EdgeCases(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	t.Run("m <= 0 means ignore errors", func(t *testing.T) {
+		tasks := []Task{
+			func() error { return errors.New("fail1") },
+			func() error { return errors.New("fail2") },
+			func() error { return nil },
+		}
+		err := Run(tasks, 2, 0) // m <= 0 → игнор ошибок
+		require.NoError(t, err, "errors should be ignored when m <= 0")
+	})
+
+	t.Run("n <= 0 means run with 1 worker", func(t *testing.T) {
+		var counter int32
+		tasks := []Task{
+			func() error { atomic.AddInt32(&counter, 1); return nil },
+		}
+		err := Run(tasks, 0, 1)
+		require.NoError(t, err)
+		require.Equal(t, int32(1), counter, "task should have run")
+	})
+
+	t.Run("fewer tasks than workers", func(t *testing.T) {
+		var counter int32
+		tasks := []Task{
+			func() error { atomic.AddInt32(&counter, 1); return nil },
+			func() error { atomic.AddInt32(&counter, 1); return nil },
+		}
+		err := Run(tasks, 10, 1)
+		require.NoError(t, err)
+		require.Equal(t, int32(2), counter, "all tasks must be executed")
+	})
+
+	t.Run("errors less than limit", func(t *testing.T) {
+		tasks := []Task{
+			func() error { return errors.New("fail1") },
+			func() error { return nil },
+			func() error { return nil },
+		}
+		err := Run(tasks, 2, 5) // лимит 5, ошибок меньше
+		require.NoError(t, err, "errors less than m should not stop execution")
+	})
+}
