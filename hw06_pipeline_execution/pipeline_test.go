@@ -148,3 +148,129 @@ func TestAllStageStop(t *testing.T) {
 
 	})
 }
+
+func TestNilDone(t *testing.T) { // проверка, что пайплайн работает корректно, если done == nil (канал отмены не передан)
+	in := make(Bi)
+	stages := []Stage{
+		func(in In) Out {
+			out := make(Bi)
+			go func() {
+				defer close(out)
+				for v := range in {
+					out <- v.(int) * 10
+				}
+			}()
+			return out
+		},
+	}
+
+	go func() {
+		in <- 1
+		in <- 2
+		in <- 3
+		close(in)
+	}()
+
+	result := make([]int, 0)
+	for v := range ExecutePipeline(in, nil, stages...) {
+		result = append(result, v.(int))
+	}
+
+	require.Equal(t, []int{10, 20, 30}, result)
+}
+
+func TestEmptyStages(t *testing.T) { // проверка, что при пустом списке стадий (stages... == nil) пайплайн возвращает входной канал как есть.
+	in := make(Bi)
+
+	go func() {
+		in <- "a"
+		in <- "b"
+		close(in)
+	}()
+
+	var out []string
+	for v := range ExecutePipeline(in, nil) {
+		out = append(out, v.(string))
+	}
+
+	require.Equal(t, []string{"a", "b"}, out)
+}
+
+func TestImmediateDone(t *testing.T) { //  проверка, что при немедленном закрытии done пайплайн ничего не обрабатывает
+	in := make(Bi)
+	done := make(Bi)
+	close(done) // done сразу закрыт
+
+	stages := []Stage{
+		func(in In) Out {
+			out := make(Bi)
+			go func() {
+				defer close(out)
+				for v := range in {
+					out <- v
+				}
+			}()
+			return out
+		},
+	}
+
+	go func() {
+		in <- 1
+		in <- 2
+		close(in)
+	}()
+
+	var result []interface{}
+	for v := range ExecutePipeline(in, done, stages...) {
+		result = append(result, v)
+	}
+
+	require.Empty(t, result)
+}
+
+func TestConcurrencyWithoutSleep(t *testing.T) { // проверка, что хотя бы два стейджа обрабатывают данные параллельно
+	in := make(Bi)
+	done := make(Bi)
+
+	stage1 := func(in In) Out {
+		out := make(Bi)
+		go func() {
+			defer close(out)
+			for v := range in {
+				out <- v.(int) + 1
+			}
+		}()
+		return out
+	}
+
+	stage2 := func(in In) Out {
+		out := make(Bi)
+		go func() {
+			defer close(out)
+			for v := range in {
+				out <- v.(int) * 2
+			}
+		}()
+		return out
+	}
+
+	stages := []Stage{stage1, stage2}
+
+	go func() {
+		for i := 0; i < 100; i++ {
+			in <- i
+		}
+		close(in)
+	}()
+
+	count := 0
+	go func() {
+		for range ExecutePipeline(in, done, stages...) {
+			count++
+		}
+	}()
+
+	require.Eventually(t, func() bool {
+		return count > 10
+	}, time.Second, 10*time.Millisecond)
+}
