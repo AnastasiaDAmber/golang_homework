@@ -145,11 +145,12 @@ func TestAllStageStop(t *testing.T) {
 		wg.Wait()
 
 		require.Len(t, result, 0)
-
 	})
 }
 
-func TestNilDone(t *testing.T) { // проверка, что пайплайн работает корректно, если done == nil (канал отмены не передан)
+func TestNilDone(t *testing.T) {
+	// проверка, что пайплайн работает корректно, если done == nil
+	// (канал отмены не передан)
 	in := make(Bi)
 	stages := []Stage{
 		func(in In) Out {
@@ -179,7 +180,9 @@ func TestNilDone(t *testing.T) { // проверка, что пайплайн р
 	require.Equal(t, []int{10, 20, 30}, result)
 }
 
-func TestEmptyStages(t *testing.T) { // проверка, что при пустом списке стадий (stages... == nil) пайплайн возвращает входной канал как есть.
+func TestEmptyStages(t *testing.T) {
+	// проверка, что при пустом списке стадий (stages... == nil)
+	// пайплайн возвращает входной канал как есть.
 	in := make(Bi)
 
 	go func() {
@@ -188,7 +191,7 @@ func TestEmptyStages(t *testing.T) { // проверка, что при пуст
 		close(in)
 	}()
 
-	var out []string
+	out := make([]string, 0, 2)
 	for v := range ExecutePipeline(in, nil) {
 		out = append(out, v.(string))
 	}
@@ -220,7 +223,7 @@ func TestImmediateDone(t *testing.T) { //  проверка, что при не�
 		close(in)
 	}()
 
-	var result []interface{}
+	result := make([]interface{}, 0, 10)
 	for v := range ExecutePipeline(in, done, stages...) {
 		result = append(result, v)
 	}
