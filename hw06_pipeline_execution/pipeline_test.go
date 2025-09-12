@@ -2,6 +2,7 @@ package hw06pipelineexecution
 
 import (
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -239,7 +240,8 @@ func TestImmediateDone(t *testing.T) { //  проверка, что при не�
 	require.Empty(t, result)
 }
 
-func TestConcurrencyWithoutSleep(t *testing.T) { // проверка, что хотя бы два стейджа обрабатывают данные параллельно
+func TestConcurrencyWithoutSleep(t *testing.T) {
+	// проверка, что хотя бы два стейджа обрабатывают данные параллельно
 	in := make(Bi)
 	done := make(Bi)
 
@@ -267,6 +269,7 @@ func TestConcurrencyWithoutSleep(t *testing.T) { // проверка, что х�
 
 	stages := []Stage{stage1, stage2}
 
+	// Подкидываем данные в канал
 	go func() {
 		for i := 0; i < 100; i++ {
 			in <- i
@@ -274,14 +277,21 @@ func TestConcurrencyWithoutSleep(t *testing.T) { // проверка, что х�
 		close(in)
 	}()
 
-	count := 0
+	var count int
+	var mu sync.Mutex
+
+	// Считаем элементы, которые прошли через пайплайн
 	go func() {
 		for range ExecutePipeline(in, done, stages...) {
+			mu.Lock()
 			count++
+			mu.Unlock()
 		}
 	}()
 
 	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
 		return count > 10
 	}, time.Second, 10*time.Millisecond)
 }
