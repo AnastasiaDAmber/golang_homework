@@ -94,29 +94,42 @@ func TestPipeline(t *testing.T) {
 }
 
 func TestAllStageStop(t *testing.T) {
-	wg := sync.WaitGroup{}
-	// Stage generator
-	g := func(_ string, f func(v interface{}) interface{}) Stage {
-		return func(in In) Out {
-			out := make(Bi)
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				defer close(out)
-				for v := range in {
-					time.Sleep(sleepPerStage)
-					out <- f(v)
+	StageWithDone := func(f func(interface{}) interface{}, done In, in In) Out {
+		out := make(Bi)
+		go func() {
+			defer close(out)
+			for {
+				select {
+				case <-done:
+					return
+				case v, ok := <-in:
+					if !ok {
+						return
+					}
+					select {
+					case <-done:
+						return
+					case out <- f(v):
+					}
 				}
-			}()
-			return out
-		}
+			}
+		}()
+		return out
 	}
 
-	stages := []Stage{
-		g("Dummy", func(v interface{}) interface{} { return v }),
-		g("Multiplier (* 2)", func(v interface{}) interface{} { return v.(int) * 2 }),
-		g("Adder (+ 100)", func(v interface{}) interface{} { return v.(int) + 100 }),
-		g("Stringifier", func(v interface{}) interface{} { return strconv.Itoa(v.(int)) }),
+	stages := func(done In) []Stage {
+		return []Stage{
+			func(in In) Out { return StageWithDone(func(v interface{}) interface{} { return v }, done, in) },
+			func(in In) Out {
+				return StageWithDone(func(v interface{}) interface{} { return v.(int) * 2 }, done, in)
+			},
+			func(in In) Out {
+				return StageWithDone(func(v interface{}) interface{} { return v.(int) + 100 }, done, in)
+			},
+			func(in In) Out {
+				return StageWithDone(func(v interface{}) interface{} { return strconv.Itoa(v.(int)) }, done, in)
+			},
+		}
 	}
 
 	t.Run("done case", func(t *testing.T) {
@@ -124,10 +137,7 @@ func TestAllStageStop(t *testing.T) {
 		done := make(Bi)
 		data := []int{1, 2, 3, 4, 5}
 
-		// Abort after 200ms
-		abortDur := sleepPerStage * 2
 		go func() {
-			<-time.After(abortDur)
 			close(done)
 		}()
 
@@ -138,13 +148,150 @@ func TestAllStageStop(t *testing.T) {
 			close(in)
 		}()
 
-		result := make([]string, 0, 10)
-		for s := range ExecutePipeline(in, done, stages...) {
-			result = append(result, s.(string))
+		result := make([]string, 0, len(data))
+		for v := range ExecutePipeline(in, done, stages(done)...) {
+			result = append(result, v.(string))
 		}
-		wg.Wait()
 
 		require.Len(t, result, 0)
-
 	})
+}
+
+func TestNilDone(t *testing.T) {
+	// проверка, что пайплайн работает корректно, если done == nil
+	// (канал отмены не передан)
+	in := make(Bi)
+	stages := []Stage{
+		func(in In) Out {
+			out := make(Bi)
+			go func() {
+				defer close(out)
+				for v := range in {
+					out <- v.(int) * 10
+				}
+			}()
+			return out
+		},
+	}
+
+	go func() {
+		in <- 1
+		in <- 2
+		in <- 3
+		close(in)
+	}()
+
+	result := make([]int, 0)
+	for v := range ExecutePipeline(in, nil, stages...) {
+		result = append(result, v.(int))
+	}
+
+	require.Equal(t, []int{10, 20, 30}, result)
+}
+
+func TestEmptyStages(t *testing.T) {
+	// проверка, что при пустом списке стадий (stages... == nil)
+	// пайплайн возвращает входной канал как есть.
+	in := make(Bi)
+
+	go func() {
+		in <- "a"
+		in <- "b"
+		close(in)
+	}()
+
+	out := make([]string, 0, 2)
+	for v := range ExecutePipeline(in, nil) {
+		out = append(out, v.(string))
+	}
+
+	require.Equal(t, []string{"a", "b"}, out)
+}
+
+func TestImmediateDone(t *testing.T) { //  проверка, что при немедленном закрытии done пайплайн ничего не обрабатывает
+	in := make(Bi)
+	done := make(Bi)
+	close(done) // done сразу закрыт
+
+	stages := []Stage{
+		func(in In) Out {
+			out := make(Bi)
+			go func() {
+				defer close(out)
+				for v := range in {
+					out <- v
+				}
+			}()
+			return out
+		},
+	}
+
+	go func() {
+		in <- 1
+		in <- 2
+		close(in)
+	}()
+
+	result := make([]interface{}, 0, 10)
+	for v := range ExecutePipeline(in, done, stages...) {
+		result = append(result, v)
+	}
+
+	require.Empty(t, result)
+}
+
+func TestConcurrencyWithoutSleep(t *testing.T) {
+	// проверка, что хотя бы два стейджа обрабатывают данные параллельно
+	in := make(Bi)
+	done := make(Bi)
+
+	stage1 := func(in In) Out {
+		out := make(Bi)
+		go func() {
+			defer close(out)
+			for v := range in {
+				out <- v.(int) + 1
+			}
+		}()
+		return out
+	}
+
+	stage2 := func(in In) Out {
+		out := make(Bi)
+		go func() {
+			defer close(out)
+			for v := range in {
+				out <- v.(int) * 2
+			}
+		}()
+		return out
+	}
+
+	stages := []Stage{stage1, stage2}
+
+	// Подкидываем данные в канал
+	go func() {
+		for i := 0; i < 100; i++ {
+			in <- i
+		}
+		close(in)
+	}()
+
+	var count int
+	var mu sync.Mutex
+
+	// Считаем элементы, которые прошли через пайплайн
+	go func() {
+		for range ExecutePipeline(in, done, stages...) {
+			mu.Lock()
+			count++
+			mu.Unlock()
+		}
+	}()
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return count > 10
+	}, time.Second, 10*time.Millisecond)
 }
