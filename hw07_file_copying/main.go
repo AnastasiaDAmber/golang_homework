@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 )
 
 var (
@@ -18,5 +20,14 @@ func init() {
 
 func main() {
 	flag.Parse()
-	// Place your code here.
+
+	if from == "" || to == "" {
+		fmt.Fprintln(os.Stderr, "both -from and -to must be specified")
+		os.Exit(1)
+	}
+
+	if err := Copy(from, to, offset, limit); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
 }
