@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -44,7 +45,7 @@ func TestCopy(t *testing.T) {
 func TestErrors(t *testing.T) {
 	// offset больше размера файла
 	err := Copy("testdata/input.txt", filepath.Join(os.TempDir(), "out.txt"), 999999, 0)
-	if err != ErrOffsetExceedsFileSize {
+	if !errors.Is(err, ErrOffsetExceedsFileSize) {
 		t.Errorf("expected ErrOffsetExceedsFileSize, got %v", err)
 	}
 

@@ -60,7 +60,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	barReader := bar.NewProxyReader(io.LimitReader(src, copyLimit))
 
 	_, err = io.CopyN(dst, barReader, copyLimit)
-	if err != nil && err != io.EOF {
+	if err != nil && !errors.Is(err, io.EOF) {
 		bar.Finish()
 		return err
 	}
