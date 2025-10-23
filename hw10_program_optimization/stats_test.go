@@ -1,9 +1,11 @@
+//go:build !bench
 // +build !bench
 
 package hw10programoptimization
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,4 +38,48 @@ func TestGetDomainStat(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, DomainStat{}, result)
 	})
+
+	t.Run("empty data", func(t *testing.T) {
+		result, err := GetDomainStat(bytes.NewBufferString(""), "com")
+		require.NoError(t, err)
+		require.Equal(t, DomainStat{}, result)
+	})
+
+	t.Run("invalid JSON line", func(t *testing.T) {
+		badData := `{"Email":"user@ok.com"}
+invalid_json_line
+{"Email":"user@ok.com"}`
+		result, err := GetDomainStat(bytes.NewBufferString(badData), "com")
+		require.NoError(t, err)
+		require.Equal(t, DomainStat{"ok.com": 2}, result)
+	})
+
+	t.Run("email without @", func(t *testing.T) {
+		badEmail := `{"Email":"justtext.com"}`
+		result, err := GetDomainStat(bytes.NewBufferString(badEmail), "com")
+		require.NoError(t, err)
+		require.Equal(t, DomainStat{}, result)
+	})
+
+	t.Run("mixed case domain", func(t *testing.T) {
+		mixed := `{"Email":"user@Example.CoM"}`
+		result, err := GetDomainStat(bytes.NewBufferString(mixed), "com")
+		require.NoError(t, err)
+		require.Equal(t, DomainStat{"example.com": 1}, result)
+	})
+
+	t.Run("reader error", func(t *testing.T) {
+		reader := &errorReader{}
+		result, err := GetDomainStat(reader, "com")
+		require.Error(t, err)
+		require.Nil(t, result)
+	})
+}
+
+// errorReader — вспомогательная структура для имитации ошибки чтения
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (int, error) {
+	return 0, errors.New("read error")
+
 }
