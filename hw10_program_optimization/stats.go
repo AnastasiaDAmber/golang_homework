@@ -1,13 +1,13 @@
 package hw10programoptimization
 
 import (
-	"encoding/json"
+	"bufio"
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 )
 
+//easyjson:json
 type User struct {
 	ID       int
 	Name     string
@@ -31,36 +31,37 @@ func GetDomainStat(r io.Reader, domain string) (DomainStat, error) {
 type users [100_000]User
 
 func getUsers(r io.Reader) (result users, err error) {
-	content, err := io.ReadAll(r)
-	if err != nil {
-		return
-	}
-
-	lines := strings.Split(string(content), "\n")
-	for i, line := range lines {
+	var i int
+	sc := bufio.NewScanner(r) // создание сканера, который будет построчно считывать данные из источника r
+	for sc.Scan() {
 		var user User
-		if err = json.Unmarshal([]byte(line), &user); err != nil {
+		if err = user.UnmarshalJSON(sc.Bytes()); err != nil {
 			return
 		}
 		result[i] = user
+		i++
 	}
+
 	return
 }
 
 func countDomains(u users, domain string) (DomainStat, error) {
 	result := make(DomainStat)
+	dotDomain := "." + strings.ToLower(domain)
 
 	for _, user := range u {
-		matched, err := regexp.Match("\\."+domain, []byte(user.Email))
-		if err != nil {
-			return nil, err
+		email := user.Email
+		at := strings.LastIndexByte(email, '@')
+		if at == -1 {
+			continue
 		}
+		domainPart := email[at+1:]
 
-		if matched {
-			num := result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])]
-			num++
-			result[strings.ToLower(strings.SplitN(user.Email, "@", 2)[1])] = num
+		lowerDomainPart := strings.ToLower(domainPart)
+		if strings.HasSuffix(lowerDomainPart, dotDomain) {
+			result[lowerDomainPart]++
 		}
 	}
+
 	return result, nil
 }
