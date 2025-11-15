@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/lib/pq"
 	"github.com/pressly/goose/v3"
 )
 
@@ -26,15 +26,17 @@ func main() {
 		log.Fatal("missing --dsn")
 	}
 
-	db, err := goose.OpenDBWithDriver("pgx", dsn)
+	db, err := goose.OpenDBWithDriver("postgres", dsn)
 	if err != nil {
-		log.Fatalf("failed opening DB: %v", err)
+		log.Printf("failed opening DB: %v", err)
+		return
 	}
 	defer db.Close()
 
 	fmt.Println("Applying migrations...")
 	if err := goose.Up(db, migrations); err != nil {
-		log.Fatalf("migration failed: %v", err)
+		log.Printf("migration failed: %v", err)
+		return
 	}
 
 	fmt.Println("Migrations applied successfully")

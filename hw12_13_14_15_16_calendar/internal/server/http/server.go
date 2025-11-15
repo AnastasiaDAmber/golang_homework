@@ -22,20 +22,19 @@ type Logger interface {
 	Debug(msg string)
 }
 
-type Application interface {
-}
+type Application interface{}
 
 func NewServer(logger Logger, app Application, host string, port int) *Server {
 	mux := http.NewServeMux()
 
 	// hello handler
-	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte("hello\n"))
 	})
 
 	// root
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(200)
 		_, _ = w.Write([]byte("ok\n"))
 	})

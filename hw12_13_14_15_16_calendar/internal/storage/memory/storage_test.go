@@ -57,7 +57,6 @@ func TestStorageConcurrency(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(n)
 	for i := 0; i < n; i++ {
-		i := i
 		go func() {
 			defer wg.Done()
 			e := storage.Event{
