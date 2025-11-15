@@ -1,1 +1,39 @@
-version: "3"
+version: "3.8"
+
+services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: calendar
+      POSTGRES_PASSWORD: calendar
+      POSTGRES_DB: calendar
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./migrations:/migrations
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calendar"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    image: golang:1.22
+    working_dir: /go/src/app
+    volumes:
+      - ./:/go/src/app
+    command: ["sh", "-c", "sleep 2; go run ./cmd/migrate -dsn 'postgres://calendar:calendar@db:5432/calendar?sslmode=disable' -migrations /go/src/app/migrations"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  test:
+    image: golang:1.22
+    working_dir: /go/src/app
+    volumes:
+      - ./:/go/src/app
+    environment:
+      DB_DSN: "postgres://calendar:calendar@db:5432/calendar?sslmode=disable"
+    command: ["sh", "-c", "sleep 4; go test ./..."]
+    depends_on:
+      - migrate
