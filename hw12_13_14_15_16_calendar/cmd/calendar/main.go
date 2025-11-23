@@ -8,10 +8,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/app"
-	"github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/logger"
-	internalhttp "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/server/http"
-	memorystorage "github.com/fixme_my_friend/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/app"
+	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/logger"
+	internalhttp "github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/server/http"
+	memorystorage "github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/storage/memory"
+	sqlstorage "github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/storage/sql"
 )
 
 var configFile string
@@ -28,13 +29,30 @@ func main() {
 		return
 	}
 
-	config := NewConfig()
-	logg := logger.New(config.Logger.Level)
+	cfg, err := NewConfigFromFile(configFile)
+	if err != nil {
+		panic("failed to load config: " + err.Error())
+	}
 
-	storage := memorystorage.New()
+	logg := logger.New(cfg.Logger.Level)
+
+	var storage app.Storage
+	switch cfg.Storage.Type {
+	case "sql":
+		sql := sqlstorage.New(cfg.DB.DSN)
+		if err := sql.Connect(context.Background()); err != nil {
+			logg.Error("failed to connect to db: " + err.Error())
+			os.Exit(1)
+		}
+
+		storage = sql
+	default:
+		storage = memorystorage.New()
+	}
+
 	calendar := app.New(logg, storage)
 
-	server := internalhttp.NewServer(logg, calendar)
+	server := internalhttp.NewServer(logg, calendar, cfg.Server.Host, cfg.Server.Port)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
