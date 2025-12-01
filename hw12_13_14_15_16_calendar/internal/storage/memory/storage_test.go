@@ -2,6 +2,7 @@ package memorystorage
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -75,5 +76,58 @@ func TestStorageConcurrency(t *testing.T) {
 	}
 	if len(events) == 0 {
 		t.Fatalf("expected some events")
+	}
+}
+
+func TestStorageBusinessErrors(t *testing.T) {
+	s := New()
+	ctx := context.Background()
+
+	// Тест ErrDateBusy - попытка создать событие с существующим ID
+	e := storage.Event{
+		ID:    "test-id",
+		Title: "test",
+		At:    time.Now(),
+	}
+
+	if err := s.CreateEvent(ctx, e); err != nil {
+		t.Fatalf("first create failed: %v", err)
+	}
+
+	// Попытка создать событие с тем же ID должна вернуть ErrDateBusy
+	err := s.CreateEvent(ctx, e)
+	if err == nil {
+		t.Fatalf("expected ErrDateBusy when creating duplicate event")
+	}
+	if !errors.Is(err, storage.ErrDateBusy) {
+		t.Fatalf("expected ErrDateBusy, got: %v", err)
+	}
+
+	// Тест ErrNotFound - попытка получить несуществующее событие
+	_, err = s.GetEvent(ctx, "non-existent")
+	if err == nil {
+		t.Fatalf("expected ErrNotFound when getting non-existent event")
+	}
+	if !errors.Is(err, storage.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got: %v", err)
+	}
+
+	// Тест ErrNotFound - попытка обновить несуществующее событие
+	e.ID = "non-existent"
+	err = s.UpdateEvent(ctx, e)
+	if err == nil {
+		t.Fatalf("expected ErrNotFound when updating non-existent event")
+	}
+	if !errors.Is(err, storage.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got: %v", err)
+	}
+
+	// Тест ErrNotFound - попытка удалить несуществующее событие
+	err = s.DeleteEvent(ctx, "non-existent")
+	if err == nil {
+		t.Fatalf("expected ErrNotFound when deleting non-existent event")
+	}
+	if !errors.Is(err, storage.ErrNotFound) {
+		t.Fatalf("expected ErrNotFound, got: %v", err)
 	}
 }

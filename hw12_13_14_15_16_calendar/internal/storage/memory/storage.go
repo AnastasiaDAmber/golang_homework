@@ -2,17 +2,13 @@ package memorystorage
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/storage"
 )
 
-var (
-	ErrNotFound = errors.New("event not found")
-	ErrDateBusy = errors.New("date busy")
-)
+// Используем общие ошибки из пакета storage
 
 type Storage struct {
 	mu     sync.RWMutex
@@ -29,7 +25,7 @@ func (s *Storage) CreateEvent(_ context.Context, e storage.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.events[e.ID]; ok {
-		return ErrDateBusy
+		return storage.ErrDateBusy
 	}
 	s.events[e.ID] = e
 	return nil
@@ -39,7 +35,7 @@ func (s *Storage) UpdateEvent(_ context.Context, e storage.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.events[e.ID]; !ok {
-		return ErrNotFound
+		return storage.ErrNotFound
 	}
 	s.events[e.ID] = e
 	return nil
@@ -49,7 +45,7 @@ func (s *Storage) DeleteEvent(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.events[id]; !ok {
-		return ErrNotFound
+		return storage.ErrNotFound
 	}
 	delete(s.events, id)
 	return nil
@@ -60,7 +56,7 @@ func (s *Storage) GetEvent(_ context.Context, id string) (storage.Event, error) 
 	defer s.mu.RUnlock()
 	e, ok := s.events[id]
 	if !ok {
-		return storage.Event{}, ErrNotFound
+		return storage.Event{}, storage.ErrNotFound
 	}
 	return e, nil
 }
