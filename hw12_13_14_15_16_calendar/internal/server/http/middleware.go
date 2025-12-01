@@ -1,6 +1,7 @@
 package internalhttp
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -44,7 +45,6 @@ func loggingMiddleware(next http.Handler, logger Logger) http.Handler {
 		start := time.Now()
 		lrw := &loggingResponseWriter{ResponseWriter: w}
 		next.ServeHTTP(lrw, r)
-		latency := time.Since(start)
 
 		clientIP := ipFromRequest(r)
 		ua := r.UserAgent()
@@ -55,16 +55,14 @@ func loggingMiddleware(next http.Handler, logger Logger) http.Handler {
 		if status == 0 {
 			status = 200
 		}
+		// Формат: IP [дата] метод путь версия код размер "user-agent"
+		// Пример: 66.249.65.3 [25/Feb/2020:19:11:24 +0600] GET /hello?q=1 HTTP/1.1 200 30 "Mozilla/5.0"
 		msg := clientIP + " [" + start.Format("02/Jan/2006:15:04:05 -0700") + "] " +
 			method + " " + path + " " + proto + " " +
-			http.StatusText(status) + " " +
-			"(" + stringStatus(status) + ") " +
-			latency.String() + " \"" + ua + "\""
+			fmt.Sprintf("%d", status) + " " +
+			fmt.Sprintf("%d", lrw.size) + " \"" + ua + "\""
 
 		logger.Info(msg)
 	})
 }
 
-func stringStatus(status int) string {
-	return http.StatusText(status)
-}

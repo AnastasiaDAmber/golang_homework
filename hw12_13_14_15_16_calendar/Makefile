@@ -41,4 +41,18 @@ test-integration:
 	# запуск интеграционных тестов в контейнере
 	go test -v ./... -run Integration
 
-.PHONY: build run build-img run-img version test lint
+test-storage:
+	# тестирование хранилища с добавлением данных
+	go run ./cmd/test_storage -config ./configs/config.yaml
+
+generate:
+	# генерация GRPC кода из proto файлов
+	@which protoc > /dev/null || (echo "protoc not found. Install: https://grpc.io/docs/protoc-installation/" && exit 1)
+	@which protoc-gen-go > /dev/null || go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	@which protoc-gen-go-grpc > /dev/null || go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	mkdir -p api/event
+	protoc --go_out=api/event --go_opt=paths=source_relative \
+		--go-grpc_out=api/event --go-grpc_opt=paths=source_relative \
+		--proto_path=api api/EventService.proto
+
+.PHONY: build run build-img run-img version test lint test-storage generate

@@ -59,3 +59,15 @@ func (a *App) GetEvent(ctx context.Context, id string) (storage.Event, error) {
 func (a *App) ListEvents(ctx context.Context) ([]storage.Event, error) {
 	return a.store.ListEvents(ctx)
 }
+
+func (a *App) ListEventsDay(ctx context.Context, dayStart time.Time) ([]storage.Event, error) {
+	return a.store.ListEventsDay(ctx, dayStart)
+}
+
+func (a *App) ListEventsWeek(ctx context.Context, weekStart time.Time) ([]storage.Event, error) {
+	return a.store.ListEventsWeek(ctx, weekStart)
+}
+
+func (a *App) ListEventsMonth(ctx context.Context, monthStart time.Time) ([]storage.Event, error) {
+	return a.store.ListEventsMonth(ctx, monthStart)
+}

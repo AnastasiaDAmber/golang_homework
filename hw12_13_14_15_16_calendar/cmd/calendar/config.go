@@ -19,8 +19,11 @@ type LoggerConf struct {
 }
 
 type ServerConf struct {
-	Host string `toml:"host"`
-	Port int    `toml:"port"`
+	Host     string `yaml:"host"`
+	HTTPPort int    `yaml:"http_port"`
+	GRPCPort int    `yaml:"grpc_port"`
+	// Для обратной совместимости
+	Port int `yaml:"port"`
 }
 
 type StorageConf struct {
@@ -53,8 +56,15 @@ func NewConfigFromFile(path string) (Config, error) {
 	if cfg.Server.Host == "" {
 		cfg.Server.Host = "0.0.0.0"
 	}
-	if cfg.Server.Port == 0 {
-		cfg.Server.Port = 8080
+	// Обратная совместимость: если указан старый port, используем его для HTTP
+	if cfg.Server.Port != 0 && cfg.Server.HTTPPort == 0 {
+		cfg.Server.HTTPPort = cfg.Server.Port
+	}
+	if cfg.Server.HTTPPort == 0 {
+		cfg.Server.HTTPPort = 8080
+	}
+	if cfg.Server.GRPCPort == 0 {
+		cfg.Server.GRPCPort = 50051
 	}
 	if cfg.Storage.Type == "" {
 		cfg.Storage.Type = "memory"

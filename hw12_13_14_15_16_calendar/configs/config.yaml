@@ -3,10 +3,11 @@ logger:
 
 server:
   host: "0.0.0.0"
-  port: 8080
+  http_port: 8080
+  grpc_port: 50051
 
 storage:
   type: memory
 
 db:
-  dsn: "postgres://calendar:password@localhost:5432/calendar?sslmode=disable"
+  dsn: "postgres://calendar:calendar@localhost:5432/calendar?sslmode=disable"
