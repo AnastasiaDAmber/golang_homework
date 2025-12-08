@@ -11,8 +11,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var ErrNotFound = errors.New("event not found")
-
 type Storage struct {
 	db  *sqlx.DB
 	dsn string
@@ -64,7 +62,7 @@ func (s *Storage) UpdateEvent(ctx context.Context, e storage.Event) error {
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return ErrNotFound
+		return storage.ErrNotFound
 	}
 	return nil
 }
@@ -75,7 +73,7 @@ func (s *Storage) DeleteEvent(ctx context.Context, id string) error {
 		return err
 	}
 	if n, _ := res.RowsAffected(); n == 0 {
-		return ErrNotFound
+		return storage.ErrNotFound
 	}
 	return nil
 }
@@ -96,7 +94,7 @@ func (s *Storage) GetEvent(ctx context.Context, id string) (storage.Event, error
 		WHERE id = $1`, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return storage.Event{}, ErrNotFound
+			return storage.Event{}, storage.ErrNotFound
 		}
 		return storage.Event{}, err
 	}
