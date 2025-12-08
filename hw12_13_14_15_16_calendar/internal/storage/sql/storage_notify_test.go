@@ -7,42 +7,51 @@ import (
 	"time"
 
 	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/storage"
+	_ "github.com/lib/pq" // PostgreSQL driver
 )
 
 func TestStorage_EventsToNotify(t *testing.T) {
-	// Используем in-memory SQLite для тестов
-	dsn := "file::memory:?cache=shared"
+	// Используем PostgreSQL из переменной окружения или пропускаем тест
+	dsn := os.Getenv("TEST_DB_DSN")
+	if dsn == "" {
+		dsn = "postgres://calendar:calendar@localhost:5432/calendar_test?sslmode=disable"
+	}
+
 	s := New(dsn)
 	ctx := context.Background()
 
 	if err := s.Connect(ctx); err != nil {
-		t.Fatalf("failed to connect to database: %v", err)
+		t.Skipf("skipping test: failed to connect to database: %v", err)
 	}
 	defer s.Close(ctx)
 
-	// Создаем таблицу
+	// Создаем таблицу (если не существует)
 	_, err := s.db.ExecContext(ctx, `
 		CREATE TABLE IF NOT EXISTS events (
 			id TEXT PRIMARY KEY,
 			title TEXT NOT NULL,
-			at TIMESTAMP NOT NULL,
-			duration TEXT,
+			at TIMESTAMPTZ NOT NULL,
+			duration INTERVAL,
 			description TEXT,
 			user_id TEXT,
-			notify_before TEXT
+			notify_before INTERVAL
 		)
 	`)
 	if err != nil {
 		t.Fatalf("failed to create table: %v", err)
 	}
 
+	// Очищаем таблицу перед тестом
+	_, _ = s.db.ExecContext(ctx, "DELETE FROM events")
+
 	now := time.Date(2024, 1, 15, 12, 0, 0, 0, time.UTC)
 
 	// Событие, которое требует уведомления
+	// Событие через 1 час, уведомление за 1 час - значит время уведомления = now, событие должно быть включено
 	event1 := storage.Event{
 		ID:           "event-1",
 		Title:        "Event 1",
-		At:           now.Add(2 * time.Hour),
+		At:           now.Add(1 * time.Hour),
 		NotifyBefore: 1 * time.Hour,
 		UserID:       "user-1",
 	}
