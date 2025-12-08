@@ -34,6 +34,9 @@ issues:
     - path: cmd/.*
       linters:
         - typecheck
+    - path: internal/rabbitmq/.*
+      linters:
+        - typecheck
 
 linters:
   disable-all: true

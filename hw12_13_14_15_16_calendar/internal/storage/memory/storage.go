@@ -112,3 +112,42 @@ func (s *Storage) ListEventsMonth(_ context.Context, monthStart time.Time) ([]st
 	}
 	return out, nil
 }
+
+// EventsToNotify возвращает события, для которых нужно отправить уведомление
+// Событие должно быть выбрано, если текущее время >= (At - NotifyBefore)
+// и событие еще не произошло (At > now)
+func (s *Storage) EventsToNotify(_ context.Context, now time.Time) ([]storage.Event, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := []storage.Event{}
+	for _, ev := range s.events {
+		// Пропускаем события без NotifyBefore
+		if ev.NotifyBefore == 0 {
+			continue
+		}
+		// Пропускаем события, которые уже произошли
+		if ev.At.Before(now) || ev.At.Equal(now) {
+			continue
+		}
+		// Проверяем, нужно ли отправить уведомление
+		notifyTime := ev.At.Add(-ev.NotifyBefore)
+		if now.After(notifyTime) || now.Equal(notifyTime) {
+			out = append(out, ev)
+		}
+	}
+	return out, nil
+}
+
+// DeleteOldEvents удаляет события, произошедшие более 1 года назад
+func (s *Storage) DeleteOldEvents(_ context.Context, before time.Time) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	count := 0
+	for id, ev := range s.events {
+		if ev.At.Before(before) {
+			delete(s.events, id)
+			count++
+		}
+	}
+	return count, nil
+}

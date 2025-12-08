@@ -239,3 +239,38 @@ func (s *Storage) ListEventsMonth(ctx context.Context, monthStart time.Time) ([]
 	defer rows.Close()
 	return s.rowsToEvents(rows)
 }
+
+// EventsToNotify возвращает события, для которых нужно отправить уведомление
+// Событие должно быть выбрано, если текущее время >= (At - NotifyBefore)
+// и событие еще не произошло (At > now)
+func (s *Storage) EventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error) {
+	// SQL запрос выбирает события, где:
+	// 1. notify_before IS NOT NULL (есть настройка уведомления)
+	// 2. at > now (событие еще не произошло)
+	// 3. (at - notify_before) <= now (время уведомления наступило или прошло)
+	rows, err := s.db.QueryxContext(ctx, `
+		SELECT id, title, at, duration::text as duration, description, user_id, notify_before::text as notify_before
+		FROM events
+		WHERE notify_before IS NOT NULL
+		  AND at > $1
+		  AND (at - notify_before) <= $1
+		ORDER BY at`, now)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return s.rowsToEvents(rows)
+}
+
+// DeleteOldEvents удаляет события, произошедшие более 1 года назад
+func (s *Storage) DeleteOldEvents(ctx context.Context, before time.Time) (int, error) {
+	res, err := s.db.ExecContext(ctx, `DELETE FROM events WHERE at < $1`, before)
+	if err != nil {
+		return 0, err
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
+}
