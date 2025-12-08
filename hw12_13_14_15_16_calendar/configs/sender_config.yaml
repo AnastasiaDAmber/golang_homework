@@ -1,0 +1,7 @@
+logger:
+  level: info
+
+rabbitmq:
+  url: "amqp://guest:guest@localhost:5672/"
+  queue_name: "notifications"
+
