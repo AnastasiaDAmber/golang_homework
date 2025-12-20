@@ -28,6 +28,12 @@ type Storage interface {
 	ListEventsDay(ctx context.Context, dayStart time.Time) ([]storage.Event, error)
 	ListEventsWeek(ctx context.Context, weekStart time.Time) ([]storage.Event, error)
 	ListEventsMonth(ctx context.Context, monthStart time.Time) ([]storage.Event, error)
+
+	// EventsToNotify возвращает события, для которых нужно отправить уведомление
+	// Событие должно быть выбрано, если текущее время >= (At - NotifyBefore)
+	EventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error)
+	// DeleteOldEvents удаляет события, произошедшие более 1 года назад
+	DeleteOldEvents(ctx context.Context, before time.Time) (int, error)
 }
 
 func New(logger Logger, storage Storage) *App {
@@ -70,4 +76,12 @@ func (a *App) ListEventsWeek(ctx context.Context, weekStart time.Time) ([]storag
 
 func (a *App) ListEventsMonth(ctx context.Context, monthStart time.Time) ([]storage.Event, error) {
 	return a.store.ListEventsMonth(ctx, monthStart)
+}
+
+func (a *App) EventsToNotify(ctx context.Context, now time.Time) ([]storage.Event, error) {
+	return a.store.EventsToNotify(ctx, now)
+}
+
+func (a *App) DeleteOldEvents(ctx context.Context, before time.Time) (int, error) {
+	return a.store.DeleteOldEvents(ctx, before)
 }
