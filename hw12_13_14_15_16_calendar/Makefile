@@ -41,9 +41,18 @@ migrate:
 run-postgres:
 	docker-compose -f deployments/docker-compose.yaml up -d db
 
-test-integration:
-	# запуск интеграционных тестов в контейнере
-	go test -v ./... -run Integration
+up:
+	docker-compose up -d
+
+down:
+	docker-compose down -v
+
+integration-tests:
+	@set -e; \
+	docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from integration-tests; \
+	EXIT_CODE=$$?; \
+	docker-compose -f docker-compose.test.yml down -v; \
+	exit $$EXIT_CODE
 
 test-storage:
 	# тестирование хранилища с добавлением данных
@@ -59,4 +68,4 @@ generate:
 		--go-grpc_out=api/event --go-grpc_opt=paths=source_relative \
 		--proto_path=api api/EventService.proto
 
-.PHONY: build run build-img run-img version test lint test-storage generate
+.PHONY: build run build-img run-img version test lint test-storage generate up down integration-tests

@@ -47,6 +47,25 @@ func NewConfigFromFile(path string) (Config, error) {
 		return Config{}, err
 	}
 
+	// Переопределяем из переменных окружения, если они заданы
+	if level := os.Getenv("LOG_LEVEL"); level != "" {
+		cfg.Logger.Level = level
+	}
+	if dsn := os.Getenv("DB_DSN"); dsn != "" {
+		cfg.DB.DSN = dsn
+	}
+	if url := os.Getenv("RABBITMQ_URL"); url != "" {
+		cfg.RabbitMQ.URL = url
+	}
+	if queueName := os.Getenv("RABBITMQ_QUEUE_NAME"); queueName != "" {
+		cfg.RabbitMQ.QueueName = queueName
+	}
+	if interval := os.Getenv("SCHEDULER_INTERVAL"); interval != "" {
+		if d, err := time.ParseDuration(interval); err == nil {
+			cfg.Scheduler.Interval = d
+		}
+	}
+
 	// defaults
 	if cfg.Logger.Level == "" {
 		cfg.Logger.Level = "info"

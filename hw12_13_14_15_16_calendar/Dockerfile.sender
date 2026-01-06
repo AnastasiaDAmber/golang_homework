@@ -1,0 +1,25 @@
+FROM golang:1.23 AS build
+
+WORKDIR /build
+
+ENV GOTOOLCHAIN=auto
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+ARG LDFLAGS
+RUN CGO_ENABLED=0 go build \
+    -ldflags "$LDFLAGS" \
+    -o /sender ./cmd/sender
+
+FROM alpine:3.18
+
+RUN apk add --no-cache ca-certificates
+
+COPY --from=build /sender /usr/local/bin/sender
+COPY --from=build /build/configs/sender_config.yaml /etc/calendar/sender_config.yaml
+
+CMD ["sender", "-config", "/etc/calendar/sender_config.yaml"]
+

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"gopkg.in/yaml.v3"
 )
@@ -47,6 +48,30 @@ func NewConfigFromFile(path string) (Config, error) {
 	var cfg Config
 	if err := yaml.Unmarshal(f, &cfg); err != nil {
 		return Config{}, err
+	}
+
+	// Переопределяем из переменных окружения, если они заданы
+	if level := os.Getenv("LOG_LEVEL"); level != "" {
+		cfg.Logger.Level = level
+	}
+	if host := os.Getenv("SERVER_HOST"); host != "" {
+		cfg.Server.Host = host
+	}
+	if port := os.Getenv("HTTP_PORT"); port != "" {
+		if p, err := strconv.Atoi(port); err == nil {
+			cfg.Server.HTTPPort = p
+		}
+	}
+	if port := os.Getenv("GRPC_PORT"); port != "" {
+		if p, err := strconv.Atoi(port); err == nil {
+			cfg.Server.GRPCPort = p
+		}
+	}
+	if storageType := os.Getenv("STORAGE_TYPE"); storageType != "" {
+		cfg.Storage.Type = storageType
+	}
+	if dsn := os.Getenv("DB_DSN"); dsn != "" {
+		cfg.DB.DSN = dsn
 	}
 
 	// defaults

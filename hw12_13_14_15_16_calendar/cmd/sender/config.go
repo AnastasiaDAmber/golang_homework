@@ -10,6 +10,11 @@ import (
 type Config struct {
 	Logger   LoggerConf   `yaml:"logger"`
 	RabbitMQ RabbitMQConf `yaml:"rabbitmq"`
+	DB       DBConf       `yaml:"db"`
+}
+
+type DBConf struct {
+	DSN string `yaml:"dsn"`
 }
 
 type LoggerConf struct {
@@ -34,6 +39,20 @@ func NewConfigFromFile(path string) (Config, error) {
 	var cfg Config
 	if err := yaml.Unmarshal(f, &cfg); err != nil {
 		return Config{}, err
+	}
+
+	// Переопределяем из переменных окружения, если они заданы
+	if level := os.Getenv("LOG_LEVEL"); level != "" {
+		cfg.Logger.Level = level
+	}
+	if url := os.Getenv("RABBITMQ_URL"); url != "" {
+		cfg.RabbitMQ.URL = url
+	}
+	if queueName := os.Getenv("RABBITMQ_QUEUE_NAME"); queueName != "" {
+		cfg.RabbitMQ.QueueName = queueName
+	}
+	if dsn := os.Getenv("DB_DSN"); dsn != "" {
+		cfg.DB.DSN = dsn
 	}
 
 	// defaults

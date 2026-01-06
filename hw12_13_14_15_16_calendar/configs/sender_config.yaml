@@ -5,3 +5,6 @@ rabbitmq:
   url: "amqp://guest:guest@localhost:5672/"
   queue_name: "notifications"
 
+db:
+  dsn: "postgres://calendar:calendar@localhost:5432/calendar?sslmode=disable"
+
