@@ -63,7 +63,7 @@ func TestCreateEventHandler(t *testing.T) {
 	server := NewServer(logg, app, "127.0.0.1", 18080)
 
 	eventData := map[string]interface{}{
-		"id":            "test-1",
+		"id":            "550e8400-e29b-41d4-a716-446655440001",
 		"title":         "Test Event",
 		"at":            time.Now().Format(time.RFC3339),
 		"duration":      "1h",
@@ -88,8 +88,8 @@ func TestCreateEventHandler(t *testing.T) {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 
-	if resp.ID != "test-1" {
-		t.Fatalf("expected id 'test-1', got '%s'", resp.ID)
+	if resp.ID != "550e8400-e29b-41d4-a716-446655440001" {
+		t.Fatalf("expected id '550e8400-e29b-41d4-a716-446655440001', got '%s'", resp.ID)
 	}
 }
 
@@ -99,7 +99,7 @@ func TestCreateEventHandlerDuplicate(t *testing.T) {
 	server := NewServer(logg, app, "127.0.0.1", 18080)
 
 	eventData := map[string]interface{}{
-		"id":    "duplicate-1",
+		"id":    "550e8400-e29b-41d4-a716-446655440002",
 		"title": "Test Event",
 		"at":    time.Now().Format(time.RFC3339),
 	}
@@ -133,13 +133,13 @@ func TestGetEventHandler(t *testing.T) {
 
 	// Сначала создаем событие
 	event := storage.Event{
-		ID:    "get-test-1",
+		ID:    "550e8400-e29b-41d4-a716-446655440003",
 		Title: "Get Test Event",
 		At:    time.Now(),
 	}
 	_ = app.CreateEvent(context.Background(), event)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/events/get?id=get-test-1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/events/get?id=550e8400-e29b-41d4-a716-446655440003", nil)
 	w := httptest.NewRecorder()
 
 	server.getEventHandler(w, req)
@@ -153,8 +153,8 @@ func TestGetEventHandler(t *testing.T) {
 		t.Fatalf("failed to unmarshal response: %v", err)
 	}
 
-	if resp.ID != "get-test-1" {
-		t.Fatalf("expected id 'get-test-1', got '%s'", resp.ID)
+	if resp.ID != "550e8400-e29b-41d4-a716-446655440003" {
+		t.Fatalf("expected id '550e8400-e29b-41d4-a716-446655440003', got '%s'", resp.ID)
 	}
 
 	if resp.Title != "Get Test Event" {
@@ -167,7 +167,7 @@ func TestGetEventHandlerNotFound(t *testing.T) {
 	app := newMockApp()
 	server := NewServer(logg, app, "127.0.0.1", 18080)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/events/get?id=non-existent", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/events/get?id=00000000-0000-0000-0000-000000000000", nil)
 	w := httptest.NewRecorder()
 
 	server.getEventHandler(w, req)
@@ -184,14 +184,14 @@ func TestUpdateEventHandler(t *testing.T) {
 
 	// Сначала создаем событие
 	event := storage.Event{
-		ID:    "update-test-1",
+		ID:    "550e8400-e29b-41d4-a716-446655440004",
 		Title: "Original Title",
 		At:    time.Now(),
 	}
 	_ = app.CreateEvent(context.Background(), event)
 
 	eventData := map[string]interface{}{
-		"id":    "update-test-1",
+		"id":    "550e8400-e29b-41d4-a716-446655440004",
 		"title": "Updated Title",
 		"at":    time.Now().Format(time.RFC3339),
 	}
@@ -208,7 +208,7 @@ func TestUpdateEventHandler(t *testing.T) {
 	}
 
 	// Проверяем, что событие действительно обновилось
-	updatedEvent, _ := app.GetEvent(context.Background(), "update-test-1")
+	updatedEvent, _ := app.GetEvent(context.Background(), "550e8400-e29b-41d4-a716-446655440004")
 	if updatedEvent.Title != "Updated Title" {
 		t.Fatalf("expected title 'Updated Title', got '%s'", updatedEvent.Title)
 	}
@@ -221,13 +221,13 @@ func TestDeleteEventHandler(t *testing.T) {
 
 	// Сначала создаем событие
 	event := storage.Event{
-		ID:    "delete-test-1",
+		ID:    "550e8400-e29b-41d4-a716-446655440005",
 		Title: "To Delete",
 		At:    time.Now(),
 	}
 	_ = app.CreateEvent(context.Background(), event)
 
-	req := httptest.NewRequest(http.MethodDelete, "/api/events/delete?id=delete-test-1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/events/delete?id=550e8400-e29b-41d4-a716-446655440005", nil)
 	w := httptest.NewRecorder()
 
 	server.deleteEventHandler(w, req)
@@ -237,7 +237,7 @@ func TestDeleteEventHandler(t *testing.T) {
 	}
 
 	// Проверяем, что событие удалено
-	_, err := app.GetEvent(context.Background(), "delete-test-1")
+	_, err := app.GetEvent(context.Background(), "550e8400-e29b-41d4-a716-446655440005")
 	if err == nil {
 		t.Fatal("expected event to be deleted")
 	}
@@ -403,7 +403,7 @@ func TestCreateEventHandlerInvalidTime(t *testing.T) {
 	server := NewServer(logg, app, "127.0.0.1", 18080)
 
 	eventData := map[string]interface{}{
-		"id":    "test-1",
+		"id":    "550e8400-e29b-41d4-a716-446655440006",
 		"title": "Test",
 		"at":    "invalid-time",
 	}

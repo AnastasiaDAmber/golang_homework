@@ -1,0 +1,22 @@
+FROM golang:1.23 AS build
+
+WORKDIR /build
+
+ENV GOTOOLCHAIN=auto
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 go build -o /migrate ./cmd/migrate
+
+FROM alpine:3.18
+
+RUN apk add --no-cache ca-certificates postgresql-client
+
+COPY --from=build /migrate /usr/local/bin/migrate
+COPY --from=build /build/migrations /migrations
+
+CMD ["migrate"]
+

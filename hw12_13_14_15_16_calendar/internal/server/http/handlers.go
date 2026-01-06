@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/storage"
 )
 
@@ -98,8 +99,19 @@ func (s *Server) createEventHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Проверяем ID, если он передан
+	eventID := req.ID
+	if eventID != "" {
+		// Проверяем, что переданный ID является валидным UUID
+		if _, err := uuid.Parse(eventID); err != nil {
+			respondError(w, http.StatusBadRequest, "Invalid ID format. Must be a valid UUID")
+			return
+		}
+	}
+	// Если ID не передан, оставляем пустым - БД сгенерирует его автоматически
+
 	event := storage.Event{
-		ID:           req.ID,
+		ID:           eventID,
 		Title:        req.Title,
 		At:           at,
 		Duration:     duration,
@@ -117,11 +129,29 @@ func (s *Server) createEventHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, eventResponse{ID: event.ID})
+	// Если ID был пустым, получаем созданное событие обратно
+	if event.ID == "" {
+		// Находим событие по title, at, user_id (последнее созданное)
+		events, err := s.app.ListEvents(r.Context())
+		if err == nil {
+			// Ищем последнее событие с такими же параметрами
+			for i := len(events) - 1; i >= 0; i-- {
+				if events[i].Title == event.Title && 
+				   events[i].At.Equal(event.At) && 
+				   events[i].UserID == event.UserID {
+					event = events[i]
+					break
+				}
+			}
+		}
+	}
+
+	respondJSON(w, http.StatusCreated, domainEventToResponse(event))
 }
 
 func (s *Server) updateEventHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
+	// Поддерживаем как PUT, так и POST для обратной совместимости
+	if r.Method != http.MethodPut && r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}

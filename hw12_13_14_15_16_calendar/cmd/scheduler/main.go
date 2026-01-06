@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/app"
 	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/logger"
 	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/rabbitmq"
@@ -47,11 +48,24 @@ func main() {
 
 	calendar := app.New(logg, storage)
 
-	// Подключаемся к RabbitMQ
+	// Подключаемся к RabbitMQ с retry
 	rmqClient := rabbitmq.NewClient(cfg.RabbitMQ.URL)
-	if err := rmqClient.Connect(context.Background()); err != nil {
-		logg.Error("failed to connect to RabbitMQ: " + err.Error())
-		os.Exit(1)
+	ctxConnect, cancelConnect := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancelConnect()
+	
+	maxRetries := 10
+	retryInterval := 3 * time.Second
+	for i := 0; i < maxRetries; i++ {
+		if err := rmqClient.Connect(ctxConnect); err == nil {
+			break
+		}
+		if i < maxRetries-1 {
+			logg.Debug(fmt.Sprintf("failed to connect to RabbitMQ (attempt %d/%d), retrying in %v...", i+1, maxRetries, retryInterval))
+			time.Sleep(retryInterval)
+		} else {
+			logg.Error("failed to connect to RabbitMQ after " + fmt.Sprintf("%d attempts", maxRetries))
+			os.Exit(1)
+		}
 	}
 	defer rmqClient.Close()
 

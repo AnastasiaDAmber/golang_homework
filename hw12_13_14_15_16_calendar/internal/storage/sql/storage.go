@@ -37,12 +37,27 @@ func (s *Storage) Close(_ context.Context) error {
 }
 
 func (s *Storage) CreateEvent(ctx context.Context, e storage.Event) error {
-	query := `
-		INSERT INTO events (id, title, at, duration, description, user_id, notify_before)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-	`
-	_, err := s.db.ExecContext(ctx, query, e.ID, e.Title, e.At, pqInterval(e.Duration),
-		e.Description, e.UserID, pqInterval(e.NotifyBefore))
+	var query string
+	var args []interface{}
+	
+	if e.ID == "" {
+		// Если ID не указан, БД сгенерирует его автоматически через DEFAULT
+		query = `
+			INSERT INTO events (title, at, duration, description, user_id, notify_before)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`
+		args = []interface{}{e.Title, e.At, pqInterval(e.Duration),
+			e.Description, e.UserID, pqInterval(e.NotifyBefore)}
+	} else {
+		query = `
+			INSERT INTO events (id, title, at, duration, description, user_id, notify_before)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`
+		args = []interface{}{e.ID, e.Title, e.At, pqInterval(e.Duration),
+			e.Description, e.UserID, pqInterval(e.NotifyBefore)}
+	}
+	
+	_, err := s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}

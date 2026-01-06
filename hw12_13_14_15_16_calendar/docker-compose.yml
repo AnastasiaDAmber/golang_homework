@@ -1,0 +1,111 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:14
+    container_name: calendar_db
+    environment:
+      POSTGRES_USER: calendar
+      POSTGRES_PASSWORD: calendar
+      POSTGRES_DB: calendar
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U calendar"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: calendar_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    container_name: calendar_migrate
+    environment:
+      DB_DSN: "postgres://calendar:calendar@db:5432/calendar?sslmode=disable"
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["migrate", "-dsn", "postgres://calendar:calendar@db:5432/calendar?sslmode=disable", "-migrations", "/migrations"]
+
+  calendar:
+    build:
+      context: .
+      dockerfile: Dockerfile.calendar
+    container_name: calendar_app
+    environment:
+      LOG_LEVEL: "info"
+      SERVER_HOST: "0.0.0.0"
+      HTTP_PORT: "8888"
+      GRPC_PORT: "50051"
+      STORAGE_TYPE: "sql"
+      DB_DSN: "postgres://calendar:calendar@db:5432/calendar?sslmode=disable"
+    ports:
+      - "8888:8888"
+      - "50051:50051"
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.scheduler
+    container_name: calendar_scheduler
+    environment:
+      LOG_LEVEL: "info"
+      DB_DSN: "postgres://calendar:calendar@db:5432/calendar?sslmode=disable"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      RABBITMQ_QUEUE_NAME: "notifications"
+      SCHEDULER_INTERVAL: "1m"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  sender:
+    build:
+      context: .
+      dockerfile: Dockerfile.sender
+    container_name: calendar_sender
+    environment:
+      LOG_LEVEL: "info"
+      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      RABBITMQ_QUEUE_NAME: "notifications"
+      DB_DSN: "postgres://calendar:calendar@db:5432/calendar?sslmode=disable"
+    depends_on:
+      db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+

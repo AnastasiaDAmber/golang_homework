@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/lib/pq"
 	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/app"
 	"github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/logger"
 	internalgrpc "github.com/AnastasiaDAmber/golang_homework/hw12_13_14_15_calendar/internal/server/grpc"
