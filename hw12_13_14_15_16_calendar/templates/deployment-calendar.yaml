@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "calendar-chart.fullname" . }}-calendar
+  labels:
+{{- include "calendar-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: calendar
+spec:
+  replicas: {{ .Values.calendar.replicaCount }}
+  selector:
+    matchLabels:
+{{- include "calendar-chart.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: calendar
+  template:
+    metadata:
+      labels:
+{{- include "calendar-chart.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: calendar
+    spec:
+      containers:
+      - name: calendar
+        image: "{{ .Values.calendar.image.repository }}:{{ .Values.calendar.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.calendar.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.calendar.service.port }}
+          protocol: TCP
+        - name: grpc
+          containerPort: {{ .Values.calendar.service.grpcPort }}
+          protocol: TCP
+        env:
+        - name: LOG_LEVEL
+          value: {{ .Values.calendar.logLevel | quote }}
+        - name: SERVER_HOST
+          value: "0.0.0.0"
+        - name: HTTP_PORT
+          value: {{ .Values.calendar.service.port | quote }}
+        - name: GRPC_PORT
+          value: {{ .Values.calendar.service.grpcPort | quote }}
+        - name: STORAGE_TYPE
+          value: "sql"
+        - name: DB_DSN
+          value: "postgres://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ .Values.postgresql.service.name }}:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.auth.database }}?sslmode=disable"
+        resources:
+          {{- toYaml .Values.calendar.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      {{- with .Values.calendar.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.calendar.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+

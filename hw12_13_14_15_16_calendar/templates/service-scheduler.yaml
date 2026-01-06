@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "calendar-chart.fullname" . }}-scheduler
+  labels:
+    {{- include "calendar-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scheduler
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "calendar-chart.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: scheduler
+

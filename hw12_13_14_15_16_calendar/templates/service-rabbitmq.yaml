@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.rabbitmq.service.name }}
+  labels:
+    {{- include "calendar-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+spec:
+  type: {{ .Values.rabbitmq.service.type }}
+  ports:
+    - port: {{ .Values.rabbitmq.service.port }}
+      targetPort: amqp
+      protocol: TCP
+      name: amqp
+    - port: {{ .Values.rabbitmq.service.managementPort }}
+      targetPort: management
+      protocol: TCP
+      name: management
+  selector:
+    {{- include "calendar-chart.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+
