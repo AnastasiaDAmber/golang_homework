@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "calendar-chart.fullname" . }}-scheduler
+  labels:
+    {{- include "calendar-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scheduler
+spec:
+  replicas: {{ .Values.scheduler.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "calendar-chart.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: scheduler
+  template:
+    metadata:
+      labels:
+        {{- include "calendar-chart.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: scheduler
+    spec:
+      containers:
+      - name: scheduler
+        image: "{{ .Values.scheduler.image.repository }}:{{ .Values.scheduler.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.scheduler.image.pullPolicy }}
+        env:
+        - name: LOG_LEVEL
+          value: {{ .Values.scheduler.logLevel | quote }}
+        - name: DB_DSN
+          value: "postgres://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ .Values.postgresql.service.name }}:{{ .Values.postgresql.service.port }}/{{ .Values.postgresql.auth.database }}?sslmode=disable"
+        - name: RABBITMQ_URL
+          value: "amqp://{{ .Values.rabbitmq.auth.username }}:{{ .Values.rabbitmq.auth.password }}@{{ .Values.rabbitmq.service.name }}:{{ .Values.rabbitmq.service.port }}/"
+        - name: RABBITMQ_QUEUE_NAME
+          value: {{ .Values.rabbitmq.queueName | quote }}
+        - name: SCHEDULER_INTERVAL
+          value: {{ .Values.scheduler.interval | quote }}
+        resources:
+          {{- toYaml .Values.scheduler.resources | nindent 10 }}
+      {{- with .Values.scheduler.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.scheduler.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+

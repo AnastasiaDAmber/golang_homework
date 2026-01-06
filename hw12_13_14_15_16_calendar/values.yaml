@@ -1,22 +1,132 @@
-replicaCount: 1
+# Default values for calendar-chart
+nameOverride: ""
+fullnameOverride: ""
 
-image:
-  repository: my-calendar-app
-  tag: "latest"
-  pullPolicy: IfNotPresent
+# Calendar API service
+calendar:
+  replicaCount: 1
+  logLevel: "info"
+  image:
+    repository: calendar
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8888
+    grpcPort: 50051
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  nodeSelector: {}
+  affinity: {}
 
-service:
-  type: ClusterIP
-  port: 80
+# Scheduler service
+scheduler:
+  replicaCount: 1
+  logLevel: "info"
+  interval: "1m"
+  image:
+    repository: calendar-scheduler
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  nodeSelector: {}
+  affinity: {}
 
+# Sender service
+sender:
+  replicaCount: 1
+  logLevel: "info"
+  image:
+    repository: calendar-sender
+    tag: "latest"
+    pullPolicy: IfNotPresent
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+  nodeSelector: {}
+  affinity: {}
+
+# PostgreSQL database
+postgresql:
+  replicaCount: 1
+  image:
+    repository: postgres
+    tag: "14"
+    pullPolicy: IfNotPresent
+  auth:
+    username: calendar
+    password: calendar
+    database: calendar
+  service:
+    name: calendar-postgresql
+    port: 5432
+  persistence:
+    size: 10Gi
+    storageClass: ""  # Use default storage class
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# RabbitMQ message queue
+rabbitmq:
+  replicaCount: 1
+  image:
+    repository: rabbitmq
+    tag: "3-management-alpine"
+    pullPolicy: IfNotPresent
+  auth:
+    username: guest
+    password: guest
+  service:
+    name: calendar-rabbitmq
+    type: ClusterIP
+    port: 5672
+    managementPort: 15672
+  queueName: "notifications"
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  nodeSelector: {}
+  affinity: {}
+
+# Migration job
+migrate:
+  image:
+    repository: calendar-migrate
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+# Ingress configuration
 ingress:
   enabled: false
+  className: ""
   annotations: {}
   hosts:
-    - host: chart-example.local
-      paths: []
+    - host: calendar.local
+      paths:
+        - path: /
+          pathType: Prefix
   tls: []
-
-resources: {}
-nodeSelector: {}
-affinity: {}

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "calendar-chart.fullname" . }}-calendar
+  labels:
+    {{- include "calendar-chart.labels" . | nindent 4 }}
+    app.kubernetes.io/component: calendar
+spec:
+  type: {{ .Values.calendar.service.type }}
+  ports:
+    - port: {{ .Values.calendar.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+    - port: {{ .Values.calendar.service.grpcPort }}
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "calendar-chart.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: calendar
+
